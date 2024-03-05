@@ -1,2 +1,2 @@
-# borrowing-fountain
-Contract that Incentivize borrowing.
+# Strap Fountain
+Contract that incentivize borrowing.
