@@ -13,10 +13,6 @@ module strap_fountain::fountain {
     use bucket_protocol::bucket;
     use bucket_protocol::bottle;
 
-    // --------------- Constant ---------------
-
-    const DISTRIBUTION_PRECISION: u128 = 0x10000000000000000;
-
     // --------------- Errors ---------------
 
     const EDividedByZero: u64 = 0;
@@ -57,7 +53,7 @@ module strap_fountain::fountain {
         flow_interval: u64,
         start_time: u64,
         ctx: &mut TxContext,
-    ) {
+    ): AdminCap {
         let fountain = Fountain<T, R> {
             id: object::new(ctx),
             source: balance::zero(),
@@ -69,7 +65,12 @@ module strap_fountain::fountain {
             cumulative_unit: 0,
             latest_release_time: start_time,
         };
+        let fountain_id = object::id(&fountain);
         transfer::share_object(fountain);
+        AdminCap {
+            id: object::new(ctx),
+            fountain_id,
+        }
     }
 
     public fun supply<T, R>(
@@ -177,6 +178,8 @@ module strap_fountain::fountain {
 
     // --------------- Fountain Getter Functions ---------------
 
+    public fun distribution_precision(): u128 { 0x10000000000000000 }
+
     public fun source_balance<T, R>(fountain: &Fountain<T, R>): u64 {
         balance::value(&fountain.source)
     }
@@ -226,13 +229,13 @@ module strap_fountain::fountain {
         let virtual_released_amount = get_virtual_released_amount(fountain, current_time);
         let virtual_cumulative_unit = fountain.cumulative_unit +
             (virtual_released_amount as u128) *
-            DISTRIBUTION_PRECISION /
+            distribution_precision() /
             (total_debt_amount(fountain) as u128);
         let debt_amount = raw_debt_by_proof<T, R>(protocol, proof);
         mul_and_div_u128(
             debt_amount,
             virtual_cumulative_unit - start_unit(proof),
-            DISTRIBUTION_PRECISION
+            distribution_precision(),
         )
     }
 
@@ -254,6 +257,8 @@ module strap_fountain::fountain {
             0
         }
     }
+
+    // --------------- Helper Functions ---------------
 
     fun raw_debt_by_debtor<T>(
         protocol: &BucketProtocol,
@@ -304,14 +309,11 @@ module strap_fountain::fountain {
         let resource_amount = balance::value(&resource);
         if (resource_amount > 0) {
             balance::join(&mut fountain.pool, resource);
-            let unit_increased = mul_and_div_u128(
-                resource_amount,
-                DISTRIBUTION_PRECISION,
-                (total_debt_amount(fountain) as u128),
-            );
-            fountain.cumulative_unit =
-                cumulative_unit(fountain) +
-                (unit_increased as u128);
+            let unit_increased =
+                distribution_precision() *
+                (resource_amount as u128) /
+                (total_debt_amount(fountain) as u128);
+            fountain.cumulative_unit = cumulative_unit(fountain) + unit_increased;
         } else {
             balance::destroy_zero(resource);
         };
