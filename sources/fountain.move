@@ -2,7 +2,7 @@ module strap_fountain::fountain {
 
     use sui::balance::{Self, Balance};
     use sui::coin::{Self, Coin};
-    use sui::tx_context::TxContext;
+    use sui::tx_context::{Self, TxContext};
     use sui::object::{Self, ID, UID};
     use sui::clock::{Self, Clock};
     // use sui::event;
@@ -34,16 +34,28 @@ module strap_fountain::fountain {
         flow_interval: u64,
         pool: Balance<R>,
         total_debt_amount: u64,
-        strap_table: Table<ID, BottleStrap<T>>,
+        strap_table: Table<address, StrapData<T>>,
+        surplus_table: Table<ID, SurplusData<T, R>>,
         cumulative_unit: u128,
         latest_release_time: u64,
+    }
+
+    struct StrapData<phantom T> has store {
+        strap: BottleStrap<T>,
+        start_unit: u128,
+        proof_id: ID,
+        debt_amount: u64,
+    }
+
+    struct SurplusData<phantom T, phantom R> has store {
+        strap: BottleStrap<T>,
+        surplus: Balance<R>,
     }
 
     struct StakeProof<phantom T, phantom R> has key, store {
         id: UID,
         fountain_id: ID,
         strap_address: address,
-        start_unit: u128,
     }
 
     // --------------- Public Functions ---------------
@@ -62,6 +74,7 @@ module strap_fountain::fountain {
             pool: balance::zero(),
             total_debt_amount: 0,
             strap_table: table::new(ctx),
+            surplus_table: table::new(ctx),
             cumulative_unit: 0,
             latest_release_time: start_time,
         };
@@ -91,63 +104,80 @@ module strap_fountain::fountain {
     ): StakeProof<T, R> {
         assert_valid_strap_to_stake<T>(protocol, &strap);
         source_to_pool(fountain, clock);
-        let strap_addr = strap::get_address(&strap);
-        let debt_amount = raw_debt_by_debtor<T>(protocol, strap_addr);
-        let id = object::new(ctx);
-        let proof_id = object::uid_to_inner(&id);
-        let strap_address = object::id_address(&strap);
-        table::add(&mut fountain.strap_table, proof_id, strap);
-        fountain.total_debt_amount = fountain.total_debt_amount + debt_amount;
-        StakeProof<T, R> {
-            id,
+        let strap_address = strap::get_address(&strap);
+        let debt_amount = get_raw_debt<T>(protocol, strap_address);
+        let strap_address = strap::get_address(&strap);
+        let proof = StakeProof<T, R> {
+            id: object::new(ctx),
             fountain_id: object::id(fountain),
             strap_address,
-            start_unit: fountain.cumulative_unit,
-        }
+        };
+        let strap_data = StrapData {
+            strap,
+            start_unit: cumulative_unit(fountain),
+            proof_id: object::id(&proof),
+            debt_amount,
+        };
+        table::add(&mut fountain.strap_table, strap_address, strap_data);
+        fountain.total_debt_amount = total_debt_amount(fountain) + debt_amount;
+        proof
     }
 
     public fun claim<T, R>(
         fountain: &mut Fountain<T, R>,
-        protocol: &BucketProtocol,
         clock: &Clock,
         proof: &mut StakeProof<T, R>,
         ctx: &mut TxContext,
     ): Coin<R> {
         assert_valid_proof(fountain, proof);
         source_to_pool(fountain, clock);
-        let current_time = clock::timestamp_ms(clock);
-        let reward_amount = get_reward_amount(fountain, protocol, proof, current_time);
-        proof.start_unit = cumulative_unit(fountain);
-        coin::take(&mut fountain.pool, reward_amount, ctx)
+        let strap_address = strap_address(proof);
+        claim_internal(fountain, clock, strap_address, ctx)
     }
 
     public fun unstake<T, R>(
         fountain: &mut Fountain<T, R>,
-        protocol: &BucketProtocol,
         clock: &Clock,
         proof: StakeProof<T, R>,
         ctx: &mut TxContext,
     ): (BottleStrap<T>, Coin<R>) {
         assert_valid_proof(fountain, &proof);
         source_to_pool(fountain, clock);
-        let reward = claim(fountain, protocol, clock, &mut proof, ctx);
-        let debt_amount = raw_debt_by_proof<T, R>(protocol, &proof);
         let StakeProof {
             id,
             fountain_id: _,
-            strap_address: _,
-            start_unit: _,
+            strap_address,
         } = proof;
         let proof_id = object::uid_to_inner(&id);
         object::delete(id);
-        fountain.total_debt_amount = total_debt_amount(fountain) - debt_amount;
-        let strap = table::remove(&mut fountain.strap_table, proof_id);
-        (strap, reward)
+        if (strap_data_exists(fountain, strap_address)) {
+            let reward = claim_internal(fountain, clock, strap_address, ctx);
+            let strap_data = table::remove(&mut fountain.strap_table, strap_address);
+            let StrapData { strap, start_unit: _, proof_id: _, debt_amount } = strap_data;
+            fountain.total_debt_amount = total_debt_amount(fountain) - debt_amount;
+            (strap, reward)
+        } else {
+            let surplus_data = table::remove(&mut fountain.surplus_table, proof_id);
+            let SurplusData { strap, surplus } = surplus_data;
+            (strap, coin::from_balance(surplus, ctx))
+        }
     }
 
-    // public fun liquidate<T, R>(
-    //     fountain: 
-    // )
+    public fun liquidate<T, R>(
+        fountain: &mut Fountain<T, R>,
+        protocol: &BucketProtocol,
+        clock: &Clock,
+        strap_address: address,
+        ctx: &mut TxContext,
+    ) {
+        if (bottle_exists<T>(protocol, strap_address)) return;
+        let reward = claim_internal(fountain, clock, strap_address, ctx);
+        let strap_data = table::remove(&mut fountain.strap_table, strap_address);
+        let StrapData { strap, start_unit: _, proof_id, debt_amount } = strap_data;
+        fountain.total_debt_amount = total_debt_amount(fountain) - debt_amount;
+        let surplus_data = SurplusData { strap, surplus: coin::into_balance(reward) };
+        table::add(&mut fountain.surplus_table, proof_id, surplus_data);
+    }
 
     // --------------- Admin Functions ---------------
 
@@ -156,7 +186,7 @@ module strap_fountain::fountain {
         clock: &Clock,
         fountain: &mut Fountain<T, R>,
         flow_amount: u64,
-        flow_interval: u64
+        flow_interval: u64,
     ) {
         assert_valid_admin_cap(fountain, cap);
         source_to_pool(fountain, clock);
@@ -204,6 +234,35 @@ module strap_fountain::fountain {
         fountain.latest_release_time
     }
 
+    public fun strap_data_exists<T, R>(
+        fountain: &Fountain<T, R>,
+        strap_address: address,
+    ): bool {
+        table::contains(&fountain.strap_table, strap_address)
+    }
+
+    // --------------- Bucket Getter Functions ---------------
+
+    public fun get_raw_debt<T>(
+        protocol: &BucketProtocol,
+        strap_address: address,
+    ): u64 {
+        let bucket = buck::borrow_bucket<T>(protocol);
+        let bottle_table = bucket::borrow_bottle_table(bucket);
+        let (_, debt_amount) = bottle::get_bottle_raw_info_by_debator(
+            bottle_table, strap_address,
+        );
+        debt_amount
+    }
+
+    public fun bottle_exists<T>(
+        protocol: &BucketProtocol,
+        strap_address: address,
+    ): bool {
+        let bucket = buck::borrow_bucket<T>(protocol);
+        bucket::bottle_exists(bucket, strap_address)
+    }
+
    // --------------- StakeProof Getter Functions ---------------
 
     public fun fountain_id<T, R>(proof: &StakeProof<T, R>): ID {
@@ -214,27 +273,26 @@ module strap_fountain::fountain {
         proof.strap_address
     }
 
-    public fun start_unit<T, R>(proof: &StakeProof<T, R>): u128 {
-        proof.start_unit
+    public fun start_unit<T>(strap_data: &StrapData<T>): u128 {
+        strap_data.start_unit
     }
 
     // --------------- Computational Functions ---------------
 
     public fun get_reward_amount<T, R>(
         fountain: &Fountain<T, R>,
-        protocol: &BucketProtocol,
-        proof: &StakeProof<T, R>,
+        strap_address: address,
         current_time: u64,
     ): u64 {
         let virtual_released_amount = get_virtual_released_amount(fountain, current_time);
-        let virtual_cumulative_unit = fountain.cumulative_unit +
+        let virtual_cumulative_unit = cumulative_unit(fountain) +
             (virtual_released_amount as u128) *
             distribution_precision() /
             (total_debt_amount(fountain) as u128);
-        let debt_amount = raw_debt_by_proof<T, R>(protocol, proof);
+        let strap_data = table::borrow(&fountain.strap_table, strap_address);
         mul_and_div_u128(
-            debt_amount,
-            virtual_cumulative_unit - start_unit(proof),
+            strap_data.debt_amount,
+            virtual_cumulative_unit - start_unit(strap_data),
             distribution_precision(),
         )
     }
@@ -258,34 +316,40 @@ module strap_fountain::fountain {
         }
     }
 
+    // --------------- Entry Functions ---------------
+
+    entry fun create_<T, R>(
+        flow_amount: u64,
+        flow_interval: u64,
+        start_time: u64,
+        ctx: &mut TxContext,
+    ) {
+        let cap = create<T, R>(flow_amount, flow_interval, start_time, ctx);
+        transfer::transfer(cap, tx_context::sender(ctx));
+    }
+
     // --------------- Helper Functions ---------------
 
-    fun raw_debt_by_debtor<T>(
-        protocol: &BucketProtocol,
-        debtor: address,
-    ): u64 {
-        let bucket = buck::borrow_bucket<T>(protocol);
-        let bottle_table = bucket::borrow_bottle_table(bucket);
-        let (_, debt_amount) = bottle::get_bottle_raw_info_by_debator(bottle_table, debtor);
-        debt_amount
+    fun claim_internal<T, R>(
+        fountain: &mut Fountain<T, R>,
+        clock: &Clock,
+        strap_address: address,
+        ctx: &mut TxContext,
+    ): Coin<R> {
+        let current_time = clock::timestamp_ms(clock);
+        let reward_amount = get_reward_amount(fountain, strap_address, current_time);
+        let fountain_cumulative_unit = cumulative_unit(fountain);
+        let strap_data_mut = borrow_strap_data_mut(fountain, strap_address);
+        strap_data_mut.start_unit = fountain_cumulative_unit;
+        coin::take(&mut fountain.pool, reward_amount, ctx)
     }
 
-    fun raw_debt_by_proof<T, R>(
-        protocol: &BucketProtocol,
-        proof: &StakeProof<T, R>,
-    ): u64 {
-        let strap_address = strap_address(proof);
-        raw_debt_by_debtor<T>(protocol, strap_address)
+    fun borrow_strap_data_mut<T, R>(
+        fountain: &mut Fountain<T, R>,
+        strap_address: address,
+    ): &mut StrapData<T> {
+        table::borrow_mut(&mut fountain.strap_table, strap_address)
     }
-
-    // fun bottle_exists_by_proof<T, R>(
-    //     protocol: &BucketProtocol,
-    //     proof: &StakeProof<T, R>,
-    // ): bool {
-    //     let strap_address = strap_address(proof);
-    //     let bucket = buck::borrow_bucket<T>(protocol);
-    //     bucket::bottle_exists(bucket, strap_address)
-    // }
 
     fun release_resource<T, R>(fountain: &mut Fountain<T, R>, clock: &Clock): Balance<R> {
         let current_time = clock::timestamp_ms(clock);
