@@ -4,7 +4,7 @@ version = "0.0.1"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet" }
-BucketProtocol = { git = "../v1-core", subdir = "protocol/", rev = "main" }
+BucketProtocol = { git = "../v1-core", subdir = "protocol/", rev = "mainnet" }
 
 [addresses]
 strap_fountain = "0x0"
