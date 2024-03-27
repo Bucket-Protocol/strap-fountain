@@ -132,7 +132,15 @@ module strap_fountain::fountain {
         assert_valid_proof(fountain, proof);
         source_to_pool(fountain, clock);
         let strap_address = strap_address(proof);
-        claim_internal(fountain, clock, strap_address, ctx)
+        if (strap_data_exists(fountain, strap_address)) {
+            claim_internal(fountain, clock, strap_address, ctx)
+        } else {
+            let proof_id = object::id(proof);
+            let surplus_data = table::borrow_mut(&mut fountain.surplus_table, proof_id);
+            coin::from_balance(
+                balance::withdraw_all(&mut surplus_data.surplus), ctx
+            )
+        }
     }
 
     public fun unstake<T, R>(
