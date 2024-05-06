@@ -8,6 +8,7 @@ module strap_fountain::fountain {
     // use sui::event;
     use sui::table::{Self, Table};
     use sui::transfer;
+    use sui::event;
     use bucket_protocol::strap::{Self, BottleStrap};
     use bucket_protocol::buck::{Self, BucketProtocol};
     use bucket_protocol::bucket;
@@ -19,6 +20,43 @@ module strap_fountain::fountain {
     const EInvalidProof: u64 = 1;
     const EInvalidAdminCap: u64 = 2;
     const EInvalidStrapToStake: u64 = 3;
+
+    // --------------- Events ---------------
+
+    struct SupplyEvent<phantom T, phantom R> has copy, drop {
+        fountain_id: ID,
+        amount: u64,
+    }
+
+    struct LiquidateEvent<phantom T, phantom R> has copy, drop {
+        fountain_id: ID,
+        strap_address: address,
+        debt_amount: u64,
+    }
+
+    struct StakeEvent<phantom T, phantom R> has copy, drop {
+        fountain_id: ID,
+        strap_address: address,
+        debt_amount: u64,
+    }
+
+    struct UnstakeEvent<phantom T, phantom R> has copy, drop {
+        fountain_id: ID,
+        strap_address: address,
+        debt_amount: u64,
+    }
+
+    struct ClaimEvent<phantom T, phantom R> has copy, drop {
+        fountain_id: ID,
+        strap_address: address,
+        reward_amount: u64,
+    }
+
+    struct UpdateFlowRateEvent<phantom T, phantom R> has copy, drop {
+        fountain_id: ID,
+        flow_amount: u64,
+        flow_interval: u64,
+    }
 
     // --------------- Objects ---------------
 
@@ -92,7 +130,12 @@ module strap_fountain::fountain {
         resource: Coin<R>,
     ) {
         source_to_pool(fountain, clock);
+        let amount = coin::value(&resource);
         coin::put(&mut fountain.source, resource);
+        event::emit(SupplyEvent<T, R> {
+            fountain_id: object::id(fountain),
+            amount,
+        });
     }
 
     public fun stake<T, R>(
@@ -112,6 +155,11 @@ module strap_fountain::fountain {
             fountain_id: object::id(fountain),
             strap_address,
         };
+        event::emit(StakeEvent<T, R> {
+            fountain_id: object::id(fountain),
+            strap_address,
+            debt_amount,
+        });
         let strap_data = StrapData {
             strap,
             start_unit: cumulative_unit(fountain),
@@ -137,9 +185,13 @@ module strap_fountain::fountain {
         } else {
             let proof_id = object::id(proof);
             let surplus_data = table::borrow_mut(&mut fountain.surplus_table, proof_id);
-            coin::from_balance(
-                balance::withdraw_all(&mut surplus_data.surplus), ctx
-            )
+            let reward = balance::withdraw_all(&mut surplus_data.surplus);
+            event::emit(ClaimEvent<T, R> {
+                fountain_id: object::id(fountain),
+                strap_address,
+                reward_amount: balance::value(&reward),
+            });
+            coin::from_balance(reward, ctx)
         }
     }
 
@@ -163,6 +215,11 @@ module strap_fountain::fountain {
             let strap_data = table::remove(&mut fountain.strap_table, strap_address);
             let StrapData { strap, start_unit: _, proof_id: _, debt_amount } = strap_data;
             fountain.total_debt_amount = total_debt_amount(fountain) - debt_amount;
+            event::emit(UnstakeEvent<T, R> {
+                fountain_id: object::id(fountain),
+                strap_address,
+                debt_amount,
+            });
             (strap, reward)
         } else {
             let surplus_data = table::remove(&mut fountain.surplus_table, proof_id);
@@ -185,6 +242,11 @@ module strap_fountain::fountain {
         fountain.total_debt_amount = total_debt_amount(fountain) - debt_amount;
         let surplus_data = SurplusData { strap, surplus: coin::into_balance(reward) };
         table::add(&mut fountain.surplus_table, proof_id, surplus_data);
+        event::emit(LiquidateEvent<T, R> {
+            fountain_id: object::id(fountain),
+            strap_address,
+            debt_amount,
+        });
     }
 
     // --------------- Admin Functions ---------------
@@ -200,6 +262,11 @@ module strap_fountain::fountain {
         source_to_pool(fountain, clock);
         fountain.flow_amount = flow_amount;
         fountain.flow_interval = flow_interval;
+        event::emit(UpdateFlowRateEvent<T, R> {
+            fountain_id: object::id(fountain),
+            flow_amount,
+            flow_interval,
+        });
     }
 
     public fun withdraw_from_source_to<T, R>(
@@ -349,6 +416,11 @@ module strap_fountain::fountain {
         let fountain_cumulative_unit = cumulative_unit(fountain);
         let strap_data_mut = borrow_strap_data_mut(fountain, strap_address);
         strap_data_mut.start_unit = fountain_cumulative_unit;
+        event::emit(ClaimEvent<T, R> {
+            fountain_id: object::id(fountain),
+            strap_address,
+            reward_amount,
+        });
         coin::take(&mut fountain.pool, reward_amount, ctx)
     }
 
