@@ -403,6 +403,18 @@ module strap_fountain::fountain {
         transfer::transfer(cap, tx_context::sender(ctx));
     }
 
+    entry fun supply_and_update_flow_rate_<T, R>(
+        cap: &AdminCap,
+        clock: &Clock,
+        fountain: &mut Fountain<T, R>,
+        flow_interval: u64,
+        resource: Coin<R>,
+    ) {
+        let resource_value = coin::value(&resource);
+        update_flow_rate<T, R>(cap, clock, fountain, resource_value, flow_interval);
+        supply<T, R>(fountain, clock, resource);
+    }
+
     // --------------- Helper Functions ---------------
 
     fun claim_internal<T, R>(
