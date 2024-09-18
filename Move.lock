@@ -2,7 +2,7 @@
 
 [move]
 version = 0
-manifest_digest = "B066063682684D7E5DBB52BA5F8D2FFA45ECA7F9D2569606B5A899EAF3303D68"
+manifest_digest = "A9A439F98596C6682667D784A166217B7C79BB8C2D9CA45FD30FF7456B56DAA4"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 
 dependencies = [
@@ -12,7 +12,7 @@ dependencies = [
 
 [[move.package]]
 name = "BucketFramework"
-source = { git = "../v1-core", rev = "mainnet", subdir = "framework" }
+source = { git = "..", rev = "mainnet", subdir = "framework" }
 
 dependencies = [
   { name = "Sui" },
@@ -42,7 +42,7 @@ dependencies = [
 
 [[move.package]]
 name = "Flask"
-source = { git = "../v1-core", rev = "mainnet", subdir = "flask" }
+source = { git = "..", rev = "mainnet", subdir = "flask" }
 
 dependencies = [
   { name = "Sui" },
@@ -95,6 +95,6 @@ dependencies = [
 ]
 
 [move.toolchain-version]
-compiler-version = "1.30.3"
+compiler-version = "1.32.0"
 edition = "2024.beta"
 flavor = "sui"
