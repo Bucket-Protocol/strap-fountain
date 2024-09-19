@@ -193,11 +193,11 @@ module strap_fountain::fountain {
         clock: &Clock,
         strap_address: address,
         ctx: &mut TxContext,
-    ): (ID, u64) {
+    ): (bool, ID, u64) {
         if (bottle_exists<T>(protocol, strap_address)) {
             let strap_data = table::borrow(&fountain.strap_table, strap_address);
             let debt_amount = strap_data.debt_amount;
-            (strap_data.proof_id, debt_amount)
+            (false, strap_data.proof_id, debt_amount)
         } else {
             let reward = claim_internal(fountain, clock, strap_address, ctx);
             let strap_data = table::remove(&mut fountain.strap_table, strap_address);
@@ -205,7 +205,7 @@ module strap_fountain::fountain {
             fountain.total_debt_amount = total_debt_amount(fountain) - debt_amount;
             let surplus_data = SurplusData { strap, surplus: coin::into_balance(reward) };
             table::add(&mut fountain.surplus_table, proof_id, surplus_data);
-            (proof_id, debt_amount)
+            (true, proof_id, debt_amount)
         }
     }
 
