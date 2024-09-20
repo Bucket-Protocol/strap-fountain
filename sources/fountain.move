@@ -249,6 +249,28 @@ module strap_fountain::fountain {
         });
     }
 
+    public fun liquidate_with_info<T, R>(
+        fountain: &mut Fountain<T, R>,
+        protocol: &BucketProtocol,
+        clock: &Clock,
+        strap_address: address,
+        ctx: &mut TxContext,
+    ): (bool, ID, u64) {
+        if (bottle_exists<T>(protocol, strap_address)) {
+            let strap_data = table::borrow(&fountain.strap_table, strap_address);
+            let debt_amount = strap_data.debt_amount;
+            (false, strap_data.proof_id, debt_amount)
+        } else {
+            let reward = claim_internal(fountain, clock, strap_address, ctx);
+            let strap_data = table::remove(&mut fountain.strap_table, strap_address);
+            let StrapData { strap, start_unit: _, proof_id, debt_amount } = strap_data;
+            fountain.total_debt_amount = total_debt_amount(fountain) - debt_amount;
+            let surplus_data = SurplusData { strap, surplus: coin::into_balance(reward) };
+            table::add(&mut fountain.surplus_table, proof_id, surplus_data);
+            (true, proof_id, debt_amount)
+        }
+    }
+
     // --------------- Admin Functions ---------------
 
     public fun update_flow_rate<T, R>(
