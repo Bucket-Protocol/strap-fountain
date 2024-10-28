@@ -36,6 +36,26 @@ AdminCap
 0xf63201981564b62797050a0a14909ff19dcfeb8cf6700eefe3dd2eb08764e126
 ```
 
+## SCA Fountain
+Fountain, `406217067`
+```
+0xde8df1bed9afa9cbdc3ed6f868e5d8bb8819354c181288919692e2d072d71954
+```
+AdminCap
+```
+0x52af6527956f0892a7a7ca78301da19537f98eb86f37f07b7a34382dfebffa83
+```
+
+## sUSDC Fountain
+Fountain, `406217068`
+```
+0xec596ccd29fee021f22c69147d75836d07d97823d0c9bf95ef40de9eccef4b55
+```
+AdminCap
+```
+0x0e19203e039b7e7384635b352cedd632026c1701f0027a53e64ef9ba1206befd
+```
+
 ## Other Objects
 UpgradeCap
 ```
