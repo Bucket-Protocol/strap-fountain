@@ -56,6 +56,16 @@ AdminCap
 0x0e19203e039b7e7384635b352cedd632026c1701f0027a53e64ef9ba1206befd
 ```
 
+## sSUI Fountain
+Fountain, `411503873`
+```
+0xb818acbf6f2d2c5f18e2c30d3d0ca477dbdfb4d5f5a54e44dd1ac88b9b33a66a
+```
+AdminCap
+```
+0x75d6db248849771ce251742789a8badd015f734fdaf12cd4c539bb4afcc58fbf
+```
+
 ## Other Objects
 UpgradeCap
 ```
