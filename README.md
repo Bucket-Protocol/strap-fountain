@@ -96,6 +96,16 @@ AdminCap
 0xdfad4877773e97e9b09ae9d22a3f1bff29b94c28acecf6fe15db56ebceb3f998
 ```
 
+## mSUI Fountain
+Fountain, `424587149`
+```
+0x6683924feb18501ee6f9f6a977a686f341bcdac5190ca86d21c8182d7b46fd1c
+```
+AdminCap
+```
+0x80662fdc13dc6d2819dc5e7e1848c9884d2f17cca5c4d8b797080c18b46c6498
+```
+
 ## Other Objects
 UpgradeCap
 ```
