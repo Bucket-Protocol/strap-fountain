@@ -10,7 +10,8 @@ version = "0.6.1"
 # published-at = "0x5c5c325898cde61add081f52efb22dae4193f588ac385d61c50cf9ffe54630ff"
 # published-at = "0x563bab87935fc27517a505c3ba8f7603b80b232de6abf24c71363773c930f70d"
 # published-at = "0x67001837f7f70767f0c865f1304fedd3c891a69ce21e5dd50910ec928c3bcf2c"
-published-at = "0x0ee40a5485fefab25296796692142c218efc35329c32aed2663ebc3c512a9190"
+# published-at = "0x0ee40a5485fefab25296796692142c218efc35329c32aed2663ebc3c512a9190"
+published-at = "0x77f4af41143617374f22df4a68f8768851417438915b16f641ee810425ea6ab9"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet" }

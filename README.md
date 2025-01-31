@@ -3,7 +3,7 @@ Contract that incentivize borrowing.
 
 ## Package ID
 ```
-0x0ee40a5485fefab25296796692142c218efc35329c32aed2663ebc3c512a9190
+0x77f4af41143617374f22df4a68f8768851417438915b16f641ee810425ea6ab9
 ```
 
 ## afSUI Fountain
