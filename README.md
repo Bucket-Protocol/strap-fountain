@@ -3,7 +3,7 @@ Contract that incentivize borrowing.
 
 ## Package ID
 ```
-0x77f4af41143617374f22df4a68f8768851417438915b16f641ee810425ea6ab9
+0x204f5f18b9b4d10eddc0f7256284ed3c655bd06e9425801e60b262152d47de50
 ```
 
 ## afSUI Fountain
@@ -104,6 +104,46 @@ Fountain, `424587149`
 AdminCap
 ```
 0x80662fdc13dc6d2819dc5e7e1848c9884d2f17cca5c4d8b797080c18b46c6498
+```
+
+## sSBUSDT Fountain
+Fountain, `509764242`
+```
+0x47be0c2692b7d9e5c53052ac6ef0c77a64f5985e52736902db68d25fd268166b
+```
+AdminCap
+```
+0x7557cb953c783256644ac47d4c2c95fc292f3fac60057acc873165701b5e3b3a
+```
+
+## WAL Fountain
+Fountain, `509764243`
+```
+0xf1d6b296bf419c2a557c4b8649bd13cc35e2b6e7fefe491aeb79489509f3ac8e
+```
+AdminCap
+```
+0x83f18a60b1f62a224773788dc93bf178d8de00edb9bf08dc5297faa38d4b57f5
+```
+
+## sWAL Fountain
+Fountain, `509764244`
+```
+0x66d12220faaef9bf15ab1345f4a69dfc356bf5cbb2b0e5a0f53b456147e1e74c
+```
+AdminCap
+```
+0x3505e85c4be71bb372484a96a46b8ac246335eebbd78929c9b5d6eef5fcc5841
+```
+
+## sbWBTC Fountain
+Fountain, `524784045`
+```
+0xd556ee0351aa6e8f96816e7c43494a63929efd392268b1a73d6e60dd30837e62
+```
+AdminCap
+```
+0x2690917e0504839c8e33b618a654d065a015a33e00b65e3c67ddc37aaee4a013
 ```
 
 ## Other Objects
