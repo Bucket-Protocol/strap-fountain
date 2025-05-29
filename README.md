@@ -146,6 +146,16 @@ AdminCap
 0x2690917e0504839c8e33b618a654d065a015a33e00b65e3c67ddc37aaee4a013
 ```
 
+## HAEDAL Fountain
+Fountain, `564498138`
+```
+0x6471aaa20dac06a603f239d4193a743e7535720760317aad12aa556d52345ee8
+```
+AdminCap
+```
+0xa3c2afa89ca97c540ea0b4a02d8b22980a6a100283a8ed7db4c0784a0ae28c1d
+```
+
 ## Other Objects
 UpgradeCap
 ```
